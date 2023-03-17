@@ -152,6 +152,12 @@ class CadTool(WorkSpaceTool):
                 row.label(text="", icon="EVENT_Q")
                 row.operator("bim.hotkey", text="Apply Roof Path").hotkey = "S_Q"
                 row.operator("bim.cancel_editing_roof_path", icon="CANCEL", text="")
+            # TODO: RAD - testing generating gable roof, move to S_G
+            else:
+                row = layout.row(align=True)
+                row.label(text="", icon="EVENT_SHIFT")
+                row.label(text="", icon="EVENT_R")
+                row.operator("bim.hotkey", text="Regenerate gable roof").hotkey = "S_R"
 
             row = layout.row(align=True)
             row.label(text="", icon="EVENT_SHIFT")
@@ -264,6 +270,9 @@ class CadHotkey(bpy.types.Operator):
     def hotkey_S_R(self):
         if self.is_profile():
             bpy.ops.bim.add_rectangle(x=self.props.x, y=self.props.y)
+        # TODO: prototype for regeneration preview for roof, move to S_G
+        else:
+            bpy.ops.bim.generate_hipped_roof()
 
     def hotkey_S_T(self):
         bpy.ops.bim.cad_mitre()
