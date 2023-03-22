@@ -50,11 +50,20 @@ class ProfileDecorator:
         if obj.mode != "EDIT":
             return
 
-        # TODO: replace BGL with GPU
-        bgl.glLineWidth(2)
-        bgl.glPointSize(6)
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+        def gl_init(use_bgl=False):
+            # TODO: remove as deprecated?
+            if use_bgl:
+                bgl.glLineWidth(2)
+                bgl.glPointSize(6)
+                bgl.glEnable(bgl.GL_BLEND)
+                bgl.glEnable(bgl.GL_LINE_SMOOTH)
+            else:
+                gpu.state.line_width_set(2)
+                gpu.state.point_size_set(6)
+                gpu.state.blend_set('ALPHA')
+                bgl.glEnable(bgl.GL_LINE_SMOOTH)
+                
+        gl_init()
 
         all_vertices = []
         error_vertices = []
