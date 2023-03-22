@@ -50,6 +50,7 @@ class ProfileDecorator:
         if obj.mode != "EDIT":
             return
 
+        # TODO: replace BGL with GPU
         bgl.glLineWidth(2)
         bgl.glPointSize(6)
         bgl.glEnable(bgl.GL_BLEND)
@@ -59,11 +60,12 @@ class ProfileDecorator:
         error_vertices = []
         selected_vertices = []
         unselected_vertices = []
+        # special = associated with arcs/circles
         special_vertices = []
         special_vertex_indices = {}
         selected_edges = []
         unselected_edges = []
-        special_edges = []  # edges that have a circle or an arc associated with them
+        special_edges = []
 
         arc_groups = []
         circle_groups = []
@@ -87,7 +89,9 @@ class ProfileDecorator:
             all_vertices.append(co)
             if vertex.hide:
                 continue
-
+            
+            # TODO: iterate over deform layers instead of all vertex groups?
+            # move to separate function `bm_check_vertex_in_groups`
             is_arc = False
             for group_index in arc_groups:
                 if group_index in vertex[deform_layer]:
@@ -128,11 +132,12 @@ class ProfileDecorator:
                 selected_edges.append(edge_indices)
             else:
                 i1, i2 = edge.verts[0].index, edge.verts[1].index
-                if i1 in special_vertex_indices and special_vertex_indices[i1] == special_vertex_indices.get(i2, None):
+                # making sure that both vertices are in the same group
+                if i1 in special_vertex_indices \
+                    and special_vertex_indices[i1] == special_vertex_indices.get(i2, None):
                     special_edges.append(edge_indices)
                 else:
                     unselected_edges.append(edge_indices)
-        indices = [[v.index for v in e.verts] for e in bm.edges]
 
         white = (1, 1, 1, 1)
         green = (0.545, 0.863, 0, 1)
@@ -142,37 +147,24 @@ class ProfileDecorator:
 
         self.shader = gpu.shader.from_builtin("3D_UNIFORM_COLOR")
 
-        batch = batch_for_shader(self.shader, "LINES", {"pos": all_vertices}, indices=unselected_edges)
-        self.shader.bind()
-        self.shader.uniform_float("color", white)
-        batch.draw(self.shader)
+        def create_batch(shader_type, content_pos, color, indices=None, bind=True):
+            batch = batch_for_shader(self.shader, shader_type, {"pos": content_pos}, indices=indices)
+            # TODO: what's bind is for?
+            if bind:
+                self.shader.bind()
+            self.shader.uniform_float("color", color)
+            batch.draw(self.shader)
 
-        batch = batch_for_shader(self.shader, "LINES", {"pos": all_vertices}, indices=selected_edges)
-        self.shader.uniform_float("color", green)
-        batch.draw(self.shader)
-
-        batch = batch_for_shader(self.shader, "LINES", {"pos": all_vertices}, indices=special_edges)
-        self.shader.uniform_float("color", grey)
-        batch.draw(self.shader)
-
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": unselected_vertices})
-        self.shader.uniform_float("color", white)
-        batch.draw(self.shader)
-
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": error_vertices})
-        self.shader.uniform_float("color", red)
-        batch.draw(self.shader)
-
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": special_vertices})
-        self.shader.uniform_float("color", blue)
-        batch.draw(self.shader)
-
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": selected_vertices})
-        self.shader.uniform_float("color", green)
-        batch.draw(self.shader)
+        # TODO: replace colors for tests
+        create_batch("LINES", all_vertices, green, unselected_edges)
+        create_batch("LINES", all_vertices, white, selected_edges)
+        create_batch("LINES", all_vertices, grey, special_edges)
+        create_batch("POINTS", unselected_vertices, green)
+        create_batch("POINTS", error_vertices, red)
+        create_batch("POINTS", special_vertices, blue)
+        create_batch("POINTS", selected_vertices, white)
 
         # Draw arcs
-
         arc_centroids = []
         arc_segments = []
         for arc in arcs.values():
@@ -195,17 +187,11 @@ class ProfileDecorator:
                 arc_centroids.append(tuple(centroid))
             arc_segments.append(tool.Cad.create_arc_segments(pts=points, num_verts=17, make_edges=True))
 
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": arc_centroids})
-        self.shader.uniform_float("color", (0.2, 0.2, 0.2, 1))
-        batch.draw(self.shader)
-
+        create_batch("POINTS", arc_centroids, grey, bind=False)
         for verts, edges in arc_segments:
-            batch = batch_for_shader(self.shader, "LINES", {"pos": verts}, indices=edges)
-            self.shader.uniform_float("color", (0.157, 0.565, 1, 1))
-            batch.draw(self.shader)
+            create_batch('LINES', verts, blue, edges, bind=False)
 
         # Draw circles
-
         circle_centroids = []
         circle_segments = []
         for circle in circles.values():
@@ -222,14 +208,9 @@ class ProfileDecorator:
             segments = [[list(matrix @ Vector(v)) for v in segments[0]], segments[1]]
             circle_segments.append(segments)
 
-        batch = batch_for_shader(self.shader, "POINTS", {"pos": circle_centroids})
-        self.shader.uniform_float("color", (0.2, 0.2, 0.2, 1))
-        batch.draw(self.shader)
-
+        create_batch('POINTS', circle_centroids, grey, bind=False)
         for verts, edges in circle_segments:
-            batch = batch_for_shader(self.shader, "LINES", {"pos": verts}, indices=edges)
-            self.shader.uniform_float("color", (0.157, 0.565, 1, 1))
-            batch.draw(self.shader)
+            create_batch('LINES', verts, blue, edges, bind=False)
 
     def create_matrix(self, p, x, y, z):
         return Matrix([x, y, z, p]).to_4x4().transposed()
