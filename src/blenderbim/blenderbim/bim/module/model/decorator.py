@@ -27,15 +27,21 @@ from gpu.types import GPUShader, GPUBatch, GPUIndexBuf, GPUVertBuf, GPUVertForma
 from gpu_extras.batch import batch_for_shader
 
 
+white = (1, 1, 1, 1)
+green = (0.545, 0.863, 0, 1)
+red = (1, 0.2, 0.322, 1)
+blue = (0.157, 0.565, 1, 1)
+grey = (0.2, 0.2, 0.2, 1)
+
 class ProfileDecorator:
     installed = None
 
     @classmethod
-    def install(cls, context):
+    def install(cls, context, get_custom_bmesh=None, draw_faces=False):
         if cls.installed:
             cls.uninstall()
         handler = cls()
-        cls.installed = SpaceView3D.draw_handler_add(handler, (context,), "WINDOW", "POST_VIEW")
+        cls.installed = SpaceView3D.draw_handler_add(handler, (context, get_custom_bmesh, draw_faces), "WINDOW", "POST_VIEW")
 
     @classmethod
     def uninstall(cls):
@@ -45,10 +51,33 @@ class ProfileDecorator:
             pass
         cls.installed = None
 
-    def __call__(self, context):
+    def create_batch(self, shader_type, content_pos, color, indices=None, bind=True):
+        batch = batch_for_shader(self.shader, shader_type, {"pos": content_pos}, indices=indices)
+        # TODO: what's bind is for?
+        if bind:
+            self.shader.bind()
+        self.shader.uniform_float("color", color)
+        batch.draw(self.shader)
+
+    def draw_faces(self, bm, vertices_coords):
+        # copying bm to avoid drawing edges from triangulation later on
+        traingulated_bm = bm.copy()
+        bmesh.ops.triangulate(traingulated_bm, faces=traingulated_bm.faces)
+
+        face_indices = [[v.index for v in f.verts] for f in traingulated_bm.faces]
+        self.create_batch('TRIS', vertices_coords, blue, face_indices)   
+
+    def __call__(self, context, get_custom_bmesh=None, draw_faces=False):
         obj = context.active_object
+
         if obj.mode != "EDIT":
             return
+        
+        if get_custom_bmesh:
+            bm = get_custom_bmesh()
+        else:
+            bm = bmesh.from_edit_mesh(obj.data)
+
 
         def gl_init(use_bgl=False):
             # TODO: remove as deprecated?
@@ -65,6 +94,7 @@ class ProfileDecorator:
                 
         gl_init()
 
+        ### Actually drawing
         all_vertices = []
         error_vertices = []
         selected_vertices = []
@@ -86,8 +116,6 @@ class ProfileDecorator:
 
         arcs = {}
         circles = {}
-
-        bm = bmesh.from_edit_mesh(obj.data)
 
         # https://docs.blender.org/api/blender_python_api_2_63_8/bmesh.html#CustomDataAccess
         # This is how we access vertex groups via bmesh, apparently, it's not very intuitive
@@ -148,30 +176,21 @@ class ProfileDecorator:
                 else:
                     unselected_edges.append(edge_indices)
 
-        white = (1, 1, 1, 1)
-        green = (0.545, 0.863, 0, 1)
-        red = (1, 0.2, 0.322, 1)
-        blue = (0.157, 0.565, 1, 1)
-        grey = (0.2, 0.2, 0.2, 1)
-
+        ### Actually drawing
         self.shader = gpu.shader.from_builtin("3D_UNIFORM_COLOR")
 
-        def create_batch(shader_type, content_pos, color, indices=None, bind=True):
-            batch = batch_for_shader(self.shader, shader_type, {"pos": content_pos}, indices=indices)
-            # TODO: what's bind is for?
-            if bind:
-                self.shader.bind()
-            self.shader.uniform_float("color", color)
-            batch.draw(self.shader)
+        # Draw faces
+        if draw_faces:
+            self.draw_faces(bm, all_vertices)
 
         # TODO: replace colors for tests
-        create_batch("LINES", all_vertices, green, unselected_edges)
-        create_batch("LINES", all_vertices, white, selected_edges)
-        create_batch("LINES", all_vertices, grey, special_edges)
-        create_batch("POINTS", unselected_vertices, green)
-        create_batch("POINTS", error_vertices, red)
-        create_batch("POINTS", special_vertices, blue)
-        create_batch("POINTS", selected_vertices, white)
+        self.create_batch("LINES", all_vertices, green, unselected_edges)
+        self.create_batch("LINES", all_vertices, white, selected_edges)
+        self.create_batch("LINES", all_vertices, grey, special_edges)
+        self.create_batch("POINTS", unselected_vertices, green)
+        self.create_batch("POINTS", error_vertices, red)
+        self.create_batch("POINTS", special_vertices, blue)
+        self.create_batch("POINTS", selected_vertices, white)
 
         # Draw arcs
         arc_centroids = []
@@ -196,9 +215,9 @@ class ProfileDecorator:
                 arc_centroids.append(tuple(centroid))
             arc_segments.append(tool.Cad.create_arc_segments(pts=points, num_verts=17, make_edges=True))
 
-        create_batch("POINTS", arc_centroids, grey, bind=False)
+        self.create_batch("POINTS", arc_centroids, grey, bind=False)
         for verts, edges in arc_segments:
-            create_batch('LINES', verts, blue, edges, bind=False)
+            self.create_batch('LINES', verts, blue, edges, bind=False)
 
         # Draw circles
         circle_centroids = []
@@ -217,9 +236,9 @@ class ProfileDecorator:
             segments = [[list(matrix @ Vector(v)) for v in segments[0]], segments[1]]
             circle_segments.append(segments)
 
-        create_batch('POINTS', circle_centroids, grey, bind=False)
+        self.create_batch('POINTS', circle_centroids, grey, bind=False)
         for verts, edges in circle_segments:
-            create_batch('LINES', verts, blue, edges, bind=False)
+            self.create_batch('LINES', verts, blue, edges, bind=False)
 
     def create_matrix(self, p, x, y, z):
         return Matrix([x, y, z, p]).to_4x4().transposed()

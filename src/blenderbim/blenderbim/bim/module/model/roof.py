@@ -626,7 +626,16 @@ class EnableEditingRoofPath(bpy.types.Operator, tool.Ifc.Operator):
         if bpy.context.object.mode != "EDIT":
             bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.wm.tool_set_by_id(tool.Blender.get_viewport_context(), name="bim.cad_tool")
-        ProfileDecorator.install(context)
+
+        def get_custom_bmesh():
+            # copying to make sure not to mutate the edit mode bmesh
+            main_bm = tool.Blender.get_bmesh_for_mesh(obj.data).copy()
+            second_bm = bmesh.new()
+            bmesh.ops.create_cube(second_bm)
+            tool.Blender.bmesh_join(main_bm, second_bm)
+            return main_bm
+
+        ProfileDecorator.install(context, get_custom_bmesh, draw_faces=True)
         return {"FINISHED"}
 
 
