@@ -698,5 +698,46 @@ class RemoveRoof(bpy.types.Operator, tool.Ifc.Operator):
         return {"FINISHED"}
 
 
+class SetGableRoofEdgeAngle(bpy.types.Operator):
+    bl_idname = "bim.set_gable_roof_edge_angle"
+    bl_label = "Set gable roof edge angle"
+    bl_options = {"REGISTER", "UNDO"}
+    angle: bpy.props.FloatProperty(name="Angle", default=90)
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj and obj.type == "MESH" and context.mode == "EDIT_MESH"
+
+    def draw(self, context):
+        print('hello')
+        layout = self.layout
+        for prop in self.__class__.__annotations__.keys():
+            layout.prop(self, prop)
+
+    def execute(self, context):
+        # tried to avoid bmesh with foreach_get and foreach_set
+        # but in EDIT mode it's only possible to change attributes by working with bmesh
+
+        me = context.object.data
+        bm = tool.Blender.get_bmesh_for_mesh(me)
+
+        # check if attribute exists or create one
+        if 'BB_gable_roof_angles' not in me.attributes:
+            me.attributes.new('BB_gable_roof_angles', type='FLOAT', domain='EDGE')
+
+        angles_layer = bm.edges.layers.float['BB_gable_roof_angles']
+
+        # TODO: reset previous value to 0 from invoke
+        # set attribute to value from operator (angle=90)
+        for e in bm.edges:
+            if not e.select:
+                continue
+            e[angles_layer] = self.angle
+
+        tool.Blender.apply_bmesh(me, bm)
+        return {"FINISHED"}
+
+
 def add_object_button(self, context):
     self.layout.operator(BIM_OT_add_roof.bl_idname, icon="PLUGIN")
