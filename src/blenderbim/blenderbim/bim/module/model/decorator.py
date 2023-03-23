@@ -78,7 +78,6 @@ class ProfileDecorator:
         else:
             bm = bmesh.from_edit_mesh(obj.data)
 
-
         def gl_init(use_bgl=False):
             # TODO: remove as deprecated?
             if use_bgl:
@@ -104,7 +103,8 @@ class ProfileDecorator:
         special_vertex_indices = {}
         selected_edges = []
         unselected_edges = []
-        special_edges = []
+        arc_edges = []
+        roof_angle_edges = []
 
         arc_groups = []
         circle_groups = []
@@ -120,6 +120,7 @@ class ProfileDecorator:
         # https://docs.blender.org/api/blender_python_api_2_63_8/bmesh.html#CustomDataAccess
         # This is how we access vertex groups via bmesh, apparently, it's not very intuitive
         deform_layer = bm.verts.layers.deform.active
+        angle_layer = bm.edges.layers.float.get('BB_gable_roof_angles')
 
         for vertex in bm.verts:
             co = tuple(obj.matrix_world @ vertex.co)
@@ -172,7 +173,9 @@ class ProfileDecorator:
                 # making sure that both vertices are in the same group
                 if i1 in special_vertex_indices \
                     and special_vertex_indices[i1] == special_vertex_indices.get(i2, None):
-                    special_edges.append(edge_indices)
+                    arc_edges.append(edge_indices)
+                elif angle_layer and edge[angle_layer] > 0:
+                    roof_angle_edges.append(edge_indices)
                 else:
                     unselected_edges.append(edge_indices)
 
@@ -183,10 +186,12 @@ class ProfileDecorator:
         if draw_faces:
             self.draw_faces(bm, all_vertices)
 
-        # TODO: replace colors for tests
+        # TODO: replaced colors for tests
         self.create_batch("LINES", all_vertices, green, unselected_edges)
         self.create_batch("LINES", all_vertices, white, selected_edges)
-        self.create_batch("LINES", all_vertices, grey, special_edges)
+        self.create_batch("LINES", all_vertices, grey, arc_edges)
+        self.create_batch("LINES", all_vertices, blue, roof_angle_edges)
+
         self.create_batch("POINTS", unselected_vertices, green)
         self.create_batch("POINTS", error_vertices, red)
         self.create_batch("POINTS", special_vertices, blue)
