@@ -28,10 +28,15 @@ from gpu_extras.batch import batch_for_shader
 
 
 white = (1, 1, 1, 1)
+lightgrey = (0.7, 0.7, 0.7, 1)
 green = (0.545, 0.863, 0, 1)
 red = (1, 0.2, 0.322, 1)
 blue = (0.157, 0.565, 1, 1)
 grey = (0.2, 0.2, 0.2, 1)
+
+# TODO: need some better colors for preview faces and edges
+faces_color = (0.65098, 0.917647, 1, 1)
+preview_edges_color = (0.85098, 0.815686, 0.443137, 1)
 
 class ProfileDecorator:
     installed = None
@@ -67,7 +72,7 @@ class ProfileDecorator:
         bmesh.ops.triangulate(traingulated_bm, faces=traingulated_bm.faces)
 
         face_indices = [[v.index for v in f.verts] for f in traingulated_bm.faces]
-        self.create_batch('TRIS', vertices_coords, blue, face_indices)   
+        self.create_batch('TRIS', vertices_coords, faces_color, face_indices)   
 
     def __call__(self, context, get_custom_bmesh=None, draw_faces=False):
         obj = context.active_object
@@ -107,7 +112,7 @@ class ProfileDecorator:
         unselected_edges = []
         arc_edges = []
         roof_angle_edges = []
-        unused_edges = []
+        preview_edges = []
 
         arc_groups = []
         circle_groups = []
@@ -124,6 +129,7 @@ class ProfileDecorator:
         # This is how we access vertex groups via bmesh, apparently, it's not very intuitive
         deform_layer = bm.verts.layers.deform.active
         angle_layer = bm.edges.layers.float.get('BBIM_gable_roof_angles')
+        preview_layer = bm.edges.layers.int.get('BBIM_preview')
 
         for vertex in bm.verts:
             co = tuple(obj.matrix_world @ vertex.co)
@@ -179,8 +185,8 @@ class ProfileDecorator:
                     arc_edges.append(edge_indices)
                 elif angle_layer and edge[angle_layer] > 0:
                     roof_angle_edges.append(edge_indices)
-                elif angle_layer and edge[angle_layer] < 0:
-                    unused_edges.append(edge_indices)
+                elif preview_layer and edge[preview_layer] == 1:
+                    preview_edges.append(edge_indices)
                 else:
                     unselected_edges.append(edge_indices)
 
@@ -192,16 +198,16 @@ class ProfileDecorator:
             self.draw_faces(bm, all_vertices)
 
         # TODO: replaced colors for tests
-        self.create_batch("LINES", all_vertices, green, unselected_edges)
-        self.create_batch("LINES", all_vertices, white, selected_edges)
+        self.create_batch("LINES", all_vertices, lightgrey, unselected_edges)
+        self.create_batch("LINES", all_vertices, green, selected_edges)
         self.create_batch("LINES", all_vertices, grey, arc_edges)
-        self.create_batch("LINES", all_vertices, grey, unused_edges)
+        self.create_batch("LINES", all_vertices, preview_edges_color, preview_edges)
         self.create_batch("LINES", all_vertices, blue, roof_angle_edges)
 
-        self.create_batch("POINTS", unselected_vertices, green)
+        self.create_batch("POINTS", unselected_vertices, lightgrey)
         self.create_batch("POINTS", error_vertices, red)
         self.create_batch("POINTS", special_vertices, blue)
-        self.create_batch("POINTS", selected_vertices, white)
+        self.create_batch("POINTS", selected_vertices, green)
 
         # Draw arcs
         arc_centroids = []

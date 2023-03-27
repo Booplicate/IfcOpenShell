@@ -596,15 +596,22 @@ class EnableEditingRoofPath(bpy.types.Operator, tool.Ifc.Operator):
             bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.wm.tool_set_by_id(tool.Blender.get_viewport_context(), name="bim.cad_tool")
 
+        def mark_preview_edges(bm, bew_verts, new_edges, new_faces):
+            preview_layer = bm.edges.layers.int["BBIM_preview"]
+            # can't create layer in callback because it kill all the bm edge references
+            for edge in new_edges:
+                edge[preview_layer] = 1
+
         def get_custom_bmesh():
             # copying to make sure not to mutate the edit mode bmesh
-            main_bm = tool.Blender.get_bmesh_for_mesh(obj.data).copy()
-            
             bm = tool.Blender.get_bmesh_for_mesh(obj.data)
+            main_bm = bm.copy()
+            main_bm.edges.layers.int.new("BBIM_preview")
+            
             second_bm = generate_gable_roof_bmesh(bm, props.generation_method, props.height, props.angle, mutate_current_bmesh=False)
             bmesh.ops.translate(second_bm, verts=second_bm.verts, vec=Vector((0, 0, 1)))
 
-            tool.Blender.bmesh_join(main_bm, second_bm)
+            tool.Blender.bmesh_join(main_bm, second_bm, callback=mark_preview_edges)
             return main_bm
 
         ProfileDecorator.install(context, get_custom_bmesh, draw_faces=True)

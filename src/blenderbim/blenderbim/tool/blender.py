@@ -147,12 +147,16 @@ class Blender:
         return bm
     
     @classmethod
-    def bmesh_join(cls, bm_a, bm_b):
+    def bmesh_join(cls, bm_a, bm_b, callback = None):
         """Join two meshes into single one, store it in `bm_a`"""
         import bmesh
         new_verts = [bm_a.verts.new(v.co) for v in bm_b.verts]
         new_edges = [bm_a.edges.new([new_verts[v.index] for v in edge.verts]) for edge in bm_b.edges]
         new_faces = [bm_a.faces.new([new_verts[v.index] for v in face.verts]) for face in bm_b.faces]
         bmesh.ops.recalc_face_normals(bm_a, faces=bm_a.faces[:])
+
+        if callback:
+            callback(bm_a, new_verts, new_edges, new_faces)
+
         return bm_a
 
