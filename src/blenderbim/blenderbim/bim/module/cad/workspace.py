@@ -157,12 +157,6 @@ class CadTool(WorkSpaceTool):
                 row.label(text="", icon="EVENT_SHIFT")
                 row.label(text="", icon="EVENT_R")
                 row.operator("bim.hotkey", text="Set gable roof angle").hotkey = "S_R"
-            
-                # TODO: RAD - testing generating gable roof, move to S_G
-                # row = layout.row(align=True)
-                # row.label(text="", icon="EVENT_SHIFT")
-                # row.label(text="", icon="EVENT_G")
-                # row.operator("bim.hotkey", text="Regenerate gable roof").hotkey = "S_G"
 
             row = layout.row(align=True)
             row.label(text="", icon="EVENT_SHIFT")
@@ -292,9 +286,6 @@ class CadHotkey(bpy.types.Operator):
             and bpy.context.active_object.BIMRoofProperties.is_editing_path
         ):
             bpy.ops.bim.set_gable_roof_edge_angle(angle=self.props.gable_roof_edge_angle)
-
-        # TODO: prototype for regeneration preview for roof, move to S_G
-        # bpy.ops.bim.generate_hipped_roof()
 
     def hotkey_S_T(self):
         bpy.ops.bim.cad_mitre()

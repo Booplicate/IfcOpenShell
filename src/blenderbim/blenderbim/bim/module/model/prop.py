@@ -583,7 +583,9 @@ class BIMRoofProperties(PropertyGroup):
     generation_method: bpy.props.EnumProperty(
         name="Roof Generation Method", items=roof_generation_methods, default="ANGLE"
     )
-    height: bpy.props.FloatProperty(name="Height", default=1.0, description="Maximum height of the roof to be generated.")
+    height: bpy.props.FloatProperty(
+        name="Height", default=1.0, description="Maximum height of the roof to be generated."
+    )
     angle: bpy.props.FloatProperty(name="Slope Angle", default=10, description="In degrees")
 
     def get_general_kwargs(self):

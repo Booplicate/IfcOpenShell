@@ -38,6 +38,7 @@ grey = (0.2, 0.2, 0.2, 1)
 faces_color = (0.65098, 0.917647, 1, 1)
 preview_edges_color = (0.85098, 0.815686, 0.443137, 1)
 
+
 class ProfileDecorator:
     installed = None
 
@@ -46,7 +47,9 @@ class ProfileDecorator:
         if cls.installed:
             cls.uninstall()
         handler = cls()
-        cls.installed = SpaceView3D.draw_handler_add(handler, (context, get_custom_bmesh, draw_faces), "WINDOW", "POST_VIEW")
+        cls.installed = SpaceView3D.draw_handler_add(
+            handler, (context, get_custom_bmesh, draw_faces), "WINDOW", "POST_VIEW"
+        )
 
     @classmethod
     def uninstall(cls):
@@ -72,14 +75,14 @@ class ProfileDecorator:
         bmesh.ops.triangulate(traingulated_bm, faces=traingulated_bm.faces)
 
         face_indices = [[v.index for v in f.verts] for f in traingulated_bm.faces]
-        self.create_batch('TRIS', vertices_coords, faces_color, face_indices)   
+        self.create_batch("TRIS", vertices_coords, faces_color, face_indices)
 
     def __call__(self, context, get_custom_bmesh=None, draw_faces=False):
         obj = context.active_object
 
         if obj.mode != "EDIT":
             return
-        
+
         if get_custom_bmesh:
             bm = get_custom_bmesh()
         else:
@@ -95,9 +98,9 @@ class ProfileDecorator:
             else:
                 gpu.state.line_width_set(2)
                 gpu.state.point_size_set(6)
-                gpu.state.blend_set('ALPHA')
+                gpu.state.blend_set("ALPHA")
                 bgl.glEnable(bgl.GL_LINE_SMOOTH)
-                
+
         gl_init()
 
         ### Actually drawing
@@ -128,15 +131,15 @@ class ProfileDecorator:
         # https://docs.blender.org/api/blender_python_api_2_63_8/bmesh.html#CustomDataAccess
         # This is how we access vertex groups via bmesh, apparently, it's not very intuitive
         deform_layer = bm.verts.layers.deform.active
-        angle_layer = bm.edges.layers.float.get('BBIM_gable_roof_angles')
-        preview_layer = bm.edges.layers.int.get('BBIM_preview')
+        angle_layer = bm.edges.layers.float.get("BBIM_gable_roof_angles")
+        preview_layer = bm.edges.layers.int.get("BBIM_preview")
 
         for vertex in bm.verts:
             co = tuple(obj.matrix_world @ vertex.co)
             all_vertices.append(co)
             if vertex.hide:
                 continue
-            
+
             # TODO: iterate over deform layers instead of all vertex groups?
             # move to separate function `bm_check_vertex_in_groups`
             is_arc = False
@@ -180,8 +183,7 @@ class ProfileDecorator:
             else:
                 i1, i2 = edge.verts[0].index, edge.verts[1].index
                 # making sure that both vertices are in the same group
-                if i1 in special_vertex_indices \
-                    and special_vertex_indices[i1] == special_vertex_indices.get(i2, None):
+                if i1 in special_vertex_indices and special_vertex_indices[i1] == special_vertex_indices.get(i2, None):
                     arc_edges.append(edge_indices)
                 elif angle_layer and edge[angle_layer] > 0:
                     roof_angle_edges.append(edge_indices)
@@ -197,7 +199,6 @@ class ProfileDecorator:
         if draw_faces:
             self.draw_faces(bm, all_vertices)
 
-        # TODO: replaced colors for tests
         self.create_batch("LINES", all_vertices, lightgrey, unselected_edges)
         self.create_batch("LINES", all_vertices, green, selected_edges)
         self.create_batch("LINES", all_vertices, grey, arc_edges)
@@ -234,7 +235,7 @@ class ProfileDecorator:
 
         self.create_batch("POINTS", arc_centroids, grey, bind=False)
         for verts, edges in arc_segments:
-            self.create_batch('LINES', verts, blue, edges, bind=False)
+            self.create_batch("LINES", verts, blue, edges, bind=False)
 
         # Draw circles
         circle_centroids = []
@@ -253,9 +254,9 @@ class ProfileDecorator:
             segments = [[list(matrix @ Vector(v)) for v in segments[0]], segments[1]]
             circle_segments.append(segments)
 
-        self.create_batch('POINTS', circle_centroids, grey, bind=False)
+        self.create_batch("POINTS", circle_centroids, grey, bind=False)
         for verts, edges in circle_segments:
-            self.create_batch('LINES', verts, blue, edges, bind=False)
+            self.create_batch("LINES", verts, blue, edges, bind=False)
 
     def create_matrix(self, p, x, y, z):
         return Matrix([x, y, z, p]).to_4x4().transposed()

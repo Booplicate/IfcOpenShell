@@ -28,4 +28,4 @@ class BIMCadProperties(PropertyGroup):
     distance: bpy.props.FloatProperty(name="Distance", default=0.1)
     x: bpy.props.FloatProperty(name="X", default=0.2)
     y: bpy.props.FloatProperty(name="Y", default=0.1)
-    gable_roof_edge_angle: bpy.props.FloatProperty(name="Gable Roof Edge Angle", default=90)
+    gable_roof_edge_angle: bpy.props.FloatProperty(name="Gable Roof Edge Angle", default=90, soft_min=0, soft_max=90)
