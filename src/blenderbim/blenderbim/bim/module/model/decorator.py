@@ -34,9 +34,8 @@ red = (1, 0.2, 0.322, 1)
 blue = (0.157, 0.565, 1, 1)
 grey = (0.2, 0.2, 0.2, 1)
 
-# TODO: need some better colors for preview faces and edges
-faces_color = (0.65098, 0.917647, 1, 1)
-preview_edges_color = (0.85098, 0.815686, 0.443137, 1)
+faces_color = (0.494, 0.540, 0.593, 1)
+preview_edges_color = (0.130, 0.141, 0.371, 1)
 
 
 class ProfileDecorator:
@@ -101,7 +100,7 @@ class ProfileDecorator:
                 gpu.state.blend_set("ALPHA")
                 bgl.glEnable(bgl.GL_LINE_SMOOTH)
 
-        gl_init()
+        gl_init(True)
 
         ### Actually drawing
         all_vertices = []
